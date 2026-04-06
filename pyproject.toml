@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "api-rate-limit-optimization-openenv"
+version = "0.1.0"
+description = "Deterministic OpenEnv environment for API rate-limit optimization"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "pydantic==2.11.7",
+  "openenv-core==0.2.3",
+  "openai==2.7.2",
+]
+
+[project.scripts]
+server = "app.main:main"

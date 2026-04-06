@@ -1,0 +1,12 @@
+name: api-rate-limit-optimization
+description: Deterministic OpenEnv environment for API rate-limit optimization with easy/medium/hard tasks.
+entrypoint: app.main:app
+tags:
+  - openenv
+  - fastapi
+  - rate-limit
+  - optimization
+tasks:
+  - easy
+  - medium
+  - hard
