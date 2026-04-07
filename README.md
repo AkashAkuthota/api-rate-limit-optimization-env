@@ -261,9 +261,9 @@ Uses:
 
 - `API_BASE_URL`
 - `MODEL_NAME`
-- `HF_TOKEN`
+- `HF_TOKEN` or `API_KEY`
 
-Defaults are used for `API_BASE_URL` and `MODEL_NAME`. `HF_TOKEN` is read from the environment, with `OPENAI_API_KEY` also accepted by the implementation as a compatibility fallback.
+`MODEL_NAME` has a default. For hackathon validation, the baseline uses the injected `API_BASE_URL` and whichever proxy credential the runner provides as `HF_TOKEN` or `API_KEY`.
 
 Logs format:
 

@@ -9,9 +9,9 @@ from openai import OpenAI
 from environment.env import ApiRateLimitEnv, ApiObservation
 from grader.grader import grade
 
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+API_BASE_URL = os.getenv("API_BASE_URL")
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
 
 TASK_NAME = os.getenv("TASK_NAME", "all")
 BENCHMARK = os.getenv("MY_ENV_V4_BENCHMARK", "api_rate_limit_optimization")
@@ -60,15 +60,62 @@ def rule_policy(obs: ApiObservation) -> int:
     return 1
 
 
+def build_policy_prompt(obs: ApiObservation) -> str:
+    return (
+        "You are controlling an API gateway. Return exactly one digit: 0, 1, or 2.\n"
+        "Actions: 0=accept, 1=reject, 2=queue.\n"
+        "Prioritize high-priority requests, avoid rate-limit violations, and avoid overload.\n"
+        f"current_requests={obs.current_requests}\n"
+        f"rate_limit_remaining={obs.rate_limit_remaining}\n"
+        f"time_window_remaining={obs.time_window_remaining}\n"
+        f"request_priority={obs.request_priority}\n"
+        f"queue_size={obs.queue_size}\n"
+        f"avg_queue_wait={obs.avg_queue_wait}\n"
+        f"recent_violations={obs.recent_violations}\n"
+        f"system_load={obs.system_load}\n"
+        "Respond with only the action digit."
+    )
+
+
+def parse_action(content: str) -> Optional[int]:
+    for char in content:
+        if char in {"0", "1", "2"}:
+            return int(char)
+    return None
+
+
 def maybe_create_client() -> Optional[OpenAI]:
-    if not API_KEY:
+    if not API_BASE_URL or not API_KEY:
         return None
     return OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
 
+def llm_policy(client: OpenAI, obs: ApiObservation) -> tuple[Optional[int], Optional[str]]:
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            temperature=0,
+            max_tokens=5,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Return only one action digit: 0, 1, or 2.",
+                },
+                {"role": "user", "content": build_policy_prompt(obs)},
+            ],
+        )
+    except Exception as exc:
+        return None, f"llm_error:{type(exc).__name__}"
+
+    message = completion.choices[0].message.content or ""
+    action = parse_action(message)
+    if action is None:
+        return None, "llm_error:invalid_action"
+    return action, None
+
+
 async def main() -> None:
-    _client = maybe_create_client()
-    _ = _client  # Reserved for optional model-driven policies.
+    client = maybe_create_client()
 
     if TASK_NAME == "all":
         tasks = ["easy", "medium", "hard"]
@@ -81,16 +128,31 @@ async def main() -> None:
 
         rewards: List[float] = []
         steps = 0
+        llm_used = False
 
         log_start(task=task, env=BENCHMARK, model=MODEL_NAME)
 
         for step in range(1, MAX_STEPS + 1):
-            action = rule_policy(obs)
+            action: Optional[int] = None
+            error: Optional[str] = None
+
+            if client is not None and (
+                not llm_used
+                or obs.request_priority == "high"
+                or obs.rate_limit_remaining <= 1
+                or obs.system_load > 0.7
+            ):
+                action, error = llm_policy(client, obs)
+                llm_used = True
+
+            if action is None:
+                action = rule_policy(obs)
+
             next_obs, reward, done, _info = env.step(action)
 
             rewards.append(reward)
             steps = step
-            log_step(step=step, action=action, reward=reward, done=done, error=None)
+            log_step(step=step, action=action, reward=reward, done=done, error=error)
 
             obs = next_obs
             if done:
