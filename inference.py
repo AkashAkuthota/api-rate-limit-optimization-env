@@ -9,8 +9,13 @@ from openai import OpenAI
 from environment.env import ApiRateLimitEnv, ApiObservation
 from grader.grader import grade
 
-API_BASE_URL = os.getenv("API_BASE_URL")
-MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+
 API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
 
 TASK_NAME = os.getenv("TASK_NAME", "all")
