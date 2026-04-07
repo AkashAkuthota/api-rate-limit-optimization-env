@@ -1,3 +1,12 @@
+---
+title: Adaptive API Rate Limit Optimization Environment
+emoji: "🚦"
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # Adaptive API Rate Limit Optimization Environment
 
 ## 🌐 Live Deployment
